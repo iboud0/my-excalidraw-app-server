@@ -2,12 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 
-app.use(express.json());
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://my-excalidraw-app.vercel.app/'], 
+  methods: ['GET', 'POST'],
+  credentials: false
+}));
 
 app.use(express.json());
-app.use(cors({
-  origin: 'https://my-excalidraw-app.vercel.app'
-}));
 
 const clients = new Set();
 
@@ -17,21 +18,27 @@ app.get('/events', (req, res) => {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive'
   });
+  res.flushHeaders(); 
 
   clients.add(res);
+  console.log('Client connected. Total clients:', clients.size); 
 
   req.on('close', () => {
     clients.delete(res);
+    console.log('Client disconnected. Total clients:', clients.size); 
   });
 });
 
 app.post('/send-elements', (req, res) => {
   const elements = req.body.elements || [];
   console.log('Received elements:', elements);
+  
+  console.log(`Broadcasting to ${clients.size} client(s)`);
   clients.forEach(client => {
     client.write(`data: ${JSON.stringify(elements)}\n\n`);
   });
-  res.status(200).send({ message: 'Elements received successfully' });
+
+  res.status(200).send({ message: 'Elements received and broadcasted successfully' });
 });
 
 const PORT = 3000;
